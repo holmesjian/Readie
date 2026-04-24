@@ -8,14 +8,14 @@ Readie reads your week for you. It spots the risks, frames the decisions, antici
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Built with Claude](https://img.shields.io/badge/built%20with-Claude%20API-blue)](https://www.anthropic.com)
-[![Single File](https://img.shields.io/badge/deployment-single%20file-orange)](https://github.com/holmesjian/readie)
-[![Hackathon](https://img.shields.io/badge/hackathon-Push%20to%20Prod%202026-ff69b4)](https://github.com/holmesjian/readie)
+[![Single File](https://img.shields.io/badge/deployment-single%20file-orange)](https://github.com/holmesjian/Readie)
+[![Hackathon](https://img.shields.io/badge/hackathon-Push%20to%20Prod%202026-ff69b4)](https://github.com/holmesjian/Readie)
 
 ## 🎯 Try It Now
 
-**[📥 Download readie.html](https://github.com/holmesjian/readie/raw/main/readie.html)** - Open in your browser and start prepping!
+**[📥 Download readie.html](https://github.com/holmesjian/Readie/raw/main/readie.html)** - Open in your browser and start prepping!
 
-**[🌐 Live Demo on GitHub Pages](https://holmesjian.github.io/readie/)** - Try it without downloading
+**[🌐 Live Demo on GitHub Pages](https://holmesjian.github.io/Readie/readie.html)** - Try it without downloading
 
 ---
 
@@ -160,8 +160,8 @@ This was built for the **Push-to-Prod Hackathon**. Contributions welcome!
 **Built for Push-to-Prod Hackathon 2026**
 
 - 🌟 **Star this repo** if Readie helped you prep for a meeting!
-- 🐛 **Report bugs** via [GitHub Issues](https://github.com/holmesjian/readie/issues)
-- 💡 **Request features** via [GitHub Discussions](https://github.com/holmesjian/readie/discussions)
+- 🐛 **Report bugs** via [GitHub Issues](https://github.com/holmesjian/Readie/issues)
+- 💡 **Request features** via [GitHub Discussions](https://github.com/holmesjian/Readie/discussions)
 
 ## 📄 License
 
@@ -173,7 +173,7 @@ Copyright (c) 2026 holmesjian
 
 <div align="center">
 
-**[⭐ Star on GitHub](https://github.com/holmesjian/readie)** • **[📥 Download](https://github.com/holmesjian/readie/raw/main/readie.html)** • **[🐛 Report Bug](https://github.com/holmesjian/readie/issues)** • **[💡 Request Feature](https://github.com/holmesjian/readie/discussions)**
+**[⭐ Star on GitHub](https://github.com/holmesjian/Readie)** • **[📥 Download](https://github.com/holmesjian/Readie/raw/main/readie.html)** • **[🐛 Report Bug](https://github.com/holmesjian/Readie/issues)** • **[💡 Request Feature](https://github.com/holmesjian/Readie/discussions)**
 
 Made with ❤️ for better meetings everywhere
 
