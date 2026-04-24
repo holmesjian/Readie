@@ -1,12 +1,23 @@
-# Readie
+s# Readie 🚀
 
 > **Stop prepping. Start Readie.**
 
 Readie reads your week for you. It spots the risks, frames the decisions, anticipates the pushback, and generates tailored briefs for every meeting type — 1:1s, team syncs, project reviews, customer calls — in seconds.
 
-Your week, already translated.
+**Your week, already translated.**
 
-![Readie Demo](https://img.shields.io/badge/demo-live-brightgreen) ![Built with Claude](https://img.shields.io/badge/built%20with-Claude%20API-blue) ![Single File](https://img.shields.io/badge/deployment-single%20file-orange)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Built with Claude](https://img.shields.io/badge/built%20with-Claude%20API-blue)](https://www.anthropic.com)
+[![Single File](https://img.shields.io/badge/deployment-single%20file-orange)](https://github.com/holmesjian/readie)
+[![Hackathon](https://img.shields.io/badge/hackathon-Push%20to%20Prod%202026-ff69b4)](https://github.com/holmesjian/readie)
+
+## 🎯 Try It Now
+
+**[📥 Download readie.html](https://github.com/holmesjian/readie/raw/main/readie.html)** - Open in your browser and start prepping!
+
+**[🌐 Live Demo on GitHub Pages](https://holmesjian.github.io/readie/readie.html)** - Try it without downloading
+
+---
 
 ## ✨ Features
 
@@ -144,23 +155,26 @@ This was built for the **Push-to-Prod Hackathon**. Contributions welcome!
 - [ ] Multi-language support
 - [ ] Custom meeting templates
 
-## 📝 License
+## 📧 Contact & Links
 
-MIT License - see [LICENSE](LICENSE) file for details
+**Built for Push-to-Prod Hackathon 2026**
 
-## 🙏 Acknowledgments
+- 🌟 **Star this repo** if Readie helped you prep for a meeting!
+- 🐛 **Report bugs** via [GitHub Issues](https://github.com/holmesjian/readie/issues)
+- 💡 **Request features** via [GitHub Discussions](https://github.com/holmesjian/readie/discussions)
 
-- Built with [Anthropic Claude](https://www.anthropic.com)
-- PDF generation via [jsPDF](https://github.com/parallax/jsPDF)
-- Excel parsing via [SheetJS](https://github.com/SheetJS/sheetjs)
-- Created for Push-to-Prod Hackathon 2026
+## 📄 License
 
-## 📧 Contact
+MIT License - see [LICENSE](LICENSE) file for details.
 
-Built by [Your Name] - [your@email.com]
-
-Project Link: [https://github.com/yourusername/readie](https://github.com/yourusername/readie)
+Copyright (c) 2026 holmesjian
 
 ---
 
-**⭐ Star this repo if Readie helped you prep for a meeting!**
+<div align="center">
+
+**[⭐ Star on GitHub](https://github.com/holmesjian/readie)** • **[📥 Download](https://github.com/holmesjian/readie/raw/main/readie.html)** • **[🐛 Report Bug](https://github.com/holmesjian/readie/issues)** • **[💡 Request Feature](https://github.com/holmesjian/readie/discussions)**
+
+Made with ❤️ for better meetings everywhere
+
+</div>
