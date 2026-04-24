@@ -1,0 +1,2272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Readie — AI Meeting Prep</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- React + Babel -->
+  <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+
+  <!-- SheetJS for Excel parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- jsPDF for PDF export -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sidebar-bg: #0f0f14;
+      --sidebar-width: 220px;
+      --sources-width: 240px;
+      --accent-green: #22c55e;
+      --accent-green-dim: #16a34a;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-blue: #3b82f6;
+      --accent-purple: #8b5cf6;
+      --text-primary: #111827;
+      --text-secondary: #6b7280;
+      --text-muted: #9ca3af;
+      --border: #e5e7eb;
+      --border-dark: #1f1f2e;
+      --bg-main: #f9fafb;
+      --bg-panel: #ffffff;
+      --bg-subtle: #f3f4f6;
+      --font-ui: 'DM Sans', system-ui, sans-serif;
+      --font-mono: 'DM Mono', 'Fira Mono', monospace;
+    }
+
+    html, body, #root {
+      height: 100%;
+      overflow: hidden;
+      font-family: var(--font-ui);
+      background: var(--bg-main);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+    /* Utilities */
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+
+    /* ─── APP SHELL ─────────────────────────────────────── */
+    #app-shell {
+      display: flex;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* ─── SIDEBAR ───────────────────────────────────────── */
+    #sidebar {
+      width: var(--sidebar-width);
+      min-width: var(--sidebar-width);
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+      border-right: 1px solid var(--border-dark);
+    }
+
+    .sidebar-logo {
+      padding: 18px 16px 14px;
+      border-bottom: 1px solid var(--border-dark);
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--accent-green);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .logo-icon svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: #fff;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .logo-name {
+      font-size: 17px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+    }
+
+    .logo-tagline {
+      font-size: 10.5px;
+      color: #4b5563;
+      font-weight: 400;
+      letter-spacing: 0.1px;
+      padding-left: 36px;
+    }
+
+    .sidebar-section-label {
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #374151;
+      padding: 12px 16px 6px;
+    }
+
+    .meeting-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .meeting-card {
+      padding: 9px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.15s, border-color 0.15s;
+      position: relative;
+    }
+
+    .meeting-card:hover {
+      background: #1a1a24;
+    }
+
+    .meeting-card.active {
+      background: #0d1f15;
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+
+    .meeting-card-type {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #4b5563;
+      margin-bottom: 2px;
+    }
+
+    .meeting-card.active .meeting-card-type {
+      color: #16a34a;
+    }
+
+    .meeting-card-name {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #e5e7eb;
+      margin-bottom: 1px;
+      line-height: 1.3;
+    }
+
+    .meeting-card.active .meeting-card-name {
+      color: #ffffff;
+    }
+
+    .meeting-card-meta {
+      font-size: 10.5px;
+      color: #4b5563;
+    }
+
+    .meeting-card.active .meeting-card-meta {
+      color: #6b7280;
+    }
+
+    .meeting-card-today {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 9px;
+      font-weight: 600;
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      padding: 1px 5px;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
+
+    .sidebar-add-btn {
+      margin: 8px 10px 12px;
+      padding: 9px 12px;
+      border: 1.5px dashed #2a2a38;
+      border-radius: 8px;
+      background: transparent;
+      color: #4b5563;
+      font-size: 12px;
+      font-family: var(--font-ui);
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.15s, color 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .sidebar-add-btn:hover {
+      border-color: #374151;
+      color: #9ca3af;
+    }
+
+    .sidebar-download-src-btn {
+      margin: 0 10px 14px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 8px;
+      background: #1a1a24;
+      color: #6b7280;
+      font-size: 11px;
+      font-family: var(--font-ui);
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s, color 0.15s;
+      width: calc(100% - 20px);
+      letter-spacing: 0.01em;
+    }
+
+    .sidebar-download-src-btn:hover {
+      background: #22c55e18;
+      color: #22c55e;
+    }
+
+    /* ─── MAIN PANEL ────────────────────────────────────── */
+    #main-panel {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      height: 100%;
+    }
+
+    /* ─── SOURCES PANEL ─────────────────────────────────── */
+    #sources-panel {
+      width: var(--sources-width);
+      min-width: var(--sources-width);
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .sources-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .sources-section {
+      padding: 14px 14px 10px;
+    }
+
+    .sources-section + .sources-section {
+      border-top: 0.5px solid var(--border);
+    }
+
+    .sources-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    /* Source cards */
+    .source-card {
+      background: var(--bg-subtle);
+      border-radius: 8px;
+      padding: 9px 10px;
+      margin-bottom: 6px;
+      position: relative;
+      border: 1px solid var(--border);
+    }
+
+    .source-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .source-card-left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .source-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      flex-shrink: 0;
+      font-family: var(--font-mono);
+      color: #fff;
+    }
+
+    .source-icon.email  { background: #2563eb; }
+    .source-icon.doc    { background: #16a34a; }
+    .source-icon.slides { background: #d97706; }
+    .source-icon.teams  { background: #7c3aed; }
+    .source-icon.excel  { background: #059669; }
+    .source-icon.pdf    { background: #dc2626; }
+    .source-icon.slack  { background: #db2777; }
+
+    .source-card-type {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
+    }
+
+    .source-card-sender {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: right;
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .source-remove-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 16px;
+      height: 16px;
+      background: #e5e7eb;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .source-card:hover .source-remove-btn {
+      opacity: 1;
+    }
+
+    .source-remove-btn:hover {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    .source-preview {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      color: var(--text-muted);
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Gmail panel */
+    .gmail-panel {
+      background: #fafafa;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      padding: 10px;
+    }
+
+    .gmail-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+
+    .gmail-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .gmail-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .gmail-subtext {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .gmail-search-row {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 7px;
+    }
+
+    .gmail-search-input {
+      flex: 1;
+      font-size: 11px;
+      font-family: var(--font-ui);
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text-primary);
+      outline: none;
+    }
+
+    .gmail-search-input:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .gmail-fetch-btn {
+      font-size: 10.5px;
+      font-family: var(--font-ui);
+      font-weight: 600;
+      padding: 5px 9px;
+      background: #1f1f2e;
+      color: #e5e7eb;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+
+    .gmail-fetch-btn:hover { background: #374151; }
+    .gmail-fetch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .gmail-status {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      padding: 6px 0;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .gmail-error {
+      font-size: 10.5px;
+      color: #ef4444;
+      padding: 6px 0;
+      line-height: 1.4;
+    }
+
+    .gmail-success {
+      font-size: 10.5px;
+      color: #16a34a;
+      padding: 6px 0;
+      line-height: 1.4;
+    }
+
+    .gmail-email-item {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 0.5px solid var(--border);
+      gap: 6px;
+    }
+
+    .gmail-email-item:last-child { border-bottom: none; }
+
+    .gmail-email-info { flex: 1; min-width: 0; }
+
+    .gmail-email-sender {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gmail-email-subject {
+      font-size: 10px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 130px;
+    }
+
+    .gmail-email-date {
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .gmail-add-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #e5e7eb;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--text-secondary);
+      transition: background 0.15s, color 0.15s;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .gmail-add-btn:hover {
+      background: var(--accent-green);
+      color: #fff;
+    }
+
+    /* File drop zone */
+    .drop-zone {
+      border: 1.5px dashed #d1d5db;
+      border-radius: 8px;
+      padding: 14px 10px;
+      text-align: center;
+      margin-bottom: 10px;
+      transition: border-color 0.2s, background 0.2s;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--accent-green);
+      background: rgba(34, 197, 94, 0.04);
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .drop-zone-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+
+    .drop-zone-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .source-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .source-pill {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 20px;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: all 0.15s;
+      letter-spacing: 0.02em;
+      font-family: var(--font-ui);
+    }
+
+    .source-pill.email  { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
+    .source-pill.doc    { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+    .source-pill.slides { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    .source-pill.teams  { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+    .source-pill.slack  { background: #fce7f3; color: #9d174d; border-color: #fbcfe8; }
+    .source-pill.excel  { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+    .source-pill.pdf    { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+
+    .sources-footer {
+      flex-shrink: 0;
+      padding: 12px 14px;
+      border-top: 0.5px solid var(--border);
+    }
+
+    .regen-btn {
+      width: 100%;
+      padding: 9px 14px;
+      background: #111827;
+      color: #e5e7eb;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: var(--font-ui);
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: background 0.15s;
+    }
+
+    .regen-btn:hover { background: #1f2937; }
+    .regen-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ─── BRIEF PANEL ───────────────────────────────────── */
+    #brief-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg-main);
+    }
+
+    .brief-header {
+      padding: 18px 28px 14px;
+      background: var(--bg-panel);
+      border-bottom: 0.5px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .brief-header-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .brief-meeting-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+    }
+
+    .brief-download-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: #111827;
+      color: #e5e7eb;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: var(--font-ui);
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    .brief-download-btn:hover { background: #1f2937; }
+
+    .brief-meta {
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .brief-meta-sep {
+      color: var(--border);
+    }
+
+    .brief-time-tag {
+      font-size: 11px;
+      font-weight: 600;
+      background: #f3f4f6;
+      color: var(--text-secondary);
+      padding: 2px 8px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+    }
+
+    /* Brief content area */
+    .brief-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px 40px;
+    }
+
+    /* Loading/empty states */
+    .brief-state-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 14px;
+      color: var(--text-muted);
+    }
+
+    .brief-state-icon {
+      width: 48px;
+      height: 48px;
+      background: #f3f4f6;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brief-state-icon svg {
+      width: 24px;
+      height: 24px;
+      stroke: #9ca3af;
+      fill: none;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .brief-state-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    /* Spinner */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid #e5e7eb;
+      border-top-color: var(--accent-green);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .spinner-sm {
+      width: 12px;
+      height: 12px;
+      border-width: 2px;
+    }
+
+    /* ─── AGENDA ITEMS ──────────────────────────────────── */
+    .agenda-item {
+      padding: 16px 0;
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .agenda-item:last-child { border-bottom: none; }
+
+    .agenda-item-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .agenda-item-left {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .agenda-num-circle {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+      font-family: var(--font-mono);
+      color: #fff;
+      margin-top: 1px;
+    }
+
+    .num-green  { background: #16a34a; }
+    .num-amber  { background: #d97706; }
+    .num-red    { background: #dc2626; }
+    .num-blue   { background: #2563eb; }
+    .num-gray   { background: #6b7280; }
+
+    .agenda-item-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .agenda-item-subtitle {
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      margin-top: 1px;
+    }
+
+    .time-pill {
+      font-size: 10.5px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: #f3f4f6;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .agenda-bullets {
+      padding-left: 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .agenda-bullet {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .agenda-bullet::before {
+      content: "—";
+      color: #d1d5db;
+      flex-shrink: 0;
+    }
+
+    .agenda-bullet.expect-bullet {
+      font-size: 11px;
+      color: var(--text-muted);
+      padding-left: 14px;
+    }
+
+    .agenda-bullet.expect-bullet::before {
+      content: "↳";
+      color: #9ca3af;
+    }
+
+    .source-tag {
+      display: inline-flex;
+      align-items: center;
+      font-size: 9px;
+      font-weight: 700;
+      font-family: var(--font-ui);
+      padding: 1px 5px;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+      margin-left: 2px;
+      text-transform: uppercase;
+    }
+
+    .tag-email  { background: #dbeafe; color: #1d4ed8; }
+    .tag-teams  { background: #ede9fe; color: #5b21b6; }
+    .tag-doc    { background: #dcfce7; color: #166534; }
+    .tag-slides { background: #fef3c7; color: #92400e; }
+    .tag-excel  { background: #d1fae5; color: #065f46; }
+    .tag-pdf    { background: #fee2e2; color: #991b1b; }
+    .tag-slack  { background: #fce7f3; color: #9d174d; }
+
+    /* Option A/B box */
+    .option-box {
+      margin: 8px 0 4px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .option-box-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 12px;
+    }
+
+    .option-box-row + .option-box-row {
+      border-top: 0.5px solid var(--border);
+    }
+
+    .option-label {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      letter-spacing: 0.05em;
+    }
+
+    .option-a { background: #dcfce7; color: #166534; }
+    .option-b { background: #fee2e2; color: #991b1b; }
+
+    .option-text {
+      color: var(--text-secondary);
+      line-height: 1.5;
+      font-size: 11px;
+    }
+
+    /* ─── RESPONSIVE TWEAKS ─────────────────────────────── */
+    @media (max-width: 900px) {
+      #sidebar { width: 180px; min-width: 180px; }
+      #sources-panel { width: 200px; min-width: 200px; }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── CONSTANTS ────────────────────────────────────────────
+const MEETINGS = [
+  {
+    id: "1on1",
+    type: "1:1",
+    name: "Weekly · Manager",
+    audience: "Manager",
+    day: "Thu",
+    time: "9:00am",
+    duration: "30 min",
+    today: false,
+    promptKey: "1on1",
+  },
+  {
+    id: "teamsync",
+    type: "Team sync",
+    name: "Biweekly · Full team",
+    audience: "Full team",
+    day: "Fri",
+    time: "2:00pm",
+    duration: "60 min",
+    today: false,
+    promptKey: "teamsync",
+  },
+  {
+    id: "projreview",
+    type: "Project review",
+    name: "Alpha · Stakeholders",
+    audience: "Stakeholders",
+    day: "Thu",
+    time: "3:00pm",
+    duration: "60 min",
+    today: true,
+    promptKey: "stakeholder",
+  },
+  {
+    id: "customer",
+    type: "Customer call",
+    name: "Acme Corp · QBR",
+    audience: "Acme Corp",
+    day: "Fri",
+    time: "10:00am",
+    duration: "60 min",
+    today: false,
+    promptKey: "customer",
+  },
+];
+
+const SAMPLE_SOURCES = [
+  {
+    id: "src1",
+    type: "email",
+    label: "Email",
+    sender: "Sarah Chen",
+    preview: "Leadership is asking about the April date again. Board review May 5th — they want a clear story.",
+    full: `Subject: RE: Project Alpha — April delivery\n\nHi, leadership is asking about the April date again. They're nervous after last quarter's delays. The board review is May 5th and they want to walk in with a clear story. Can we align before your team sync this week?`,
+  },
+  {
+    id: "src2",
+    type: "email",
+    label: "Email",
+    sender: "James (PM)",
+    preview: "We're at 87% of Q2 budget with 6 weeks left. Wei was pulled off API task Apr 18 to cover infra incident.",
+    full: `Subject: Budget & resource update\n\nTwo things to flag early. First, we're at 87% of Q2 budget with 6 weeks left — should be fine but worth watching. Second, I had to pull Wei off the API task on Apr 18 to cover the infra incident. She's back on it now but that's likely what caused the delay.`,
+  },
+  {
+    id: "src3",
+    type: "email",
+    label: "Email",
+    sender: "David (Eng)",
+    preview: "~8 days behind on API integration. Two options: descope reporting and ship May 1, or keep scope and push May 15.",
+    full: `Subject: API integration status\n\nHonest update — we're about 8 days behind on the API integration. The backend dependency wasn't scoped correctly in sprint 3. We have two options: descope the reporting module and ship May 1 as planned, or keep full scope and push to May 15. I'd recommend descoping. Let me know how you want to handle it.`,
+  },
+  {
+    id: "src4",
+    type: "teams",
+    label: "Teams",
+    sender: "Dev channel",
+    preview: "Wei: back on API task. David: need scope decision by Thu or miss both dates. Marcus: design done.",
+    full: `Teams — Dev team channel:\nWei: back on API task today, making progress\nDavid: good — we need a decision on scope by Thursday or we'll miss both dates\nMarcus: design is done on my end, not blocked\nWei: if we descope reporting, I can def hit May 1\nDavid: agreed. someone needs to tell stakeholders tho\nMarcus: also — the May 2nd demo is still on the calendar, do we need to update that agenda?`,
+  },
+  {
+    id: "src5",
+    type: "teams",
+    label: "Teams",
+    sender: "1:1 w/ Mgr",
+    preview: "Manager: yes I saw James's email — what's your recommendation? You: descope reporting, ship May 1, revisit Q3.",
+    full: `Teams — 1:1 with manager (private):\nYou: wanted to flag the Alpha delay before our 1:1\nManager: yes I saw James's email — what's your recommendation?\nYou: descope reporting module, ship May 1, revisit Q3\nManager: makes sense. have you told Sarah yet?\nYou: not yet, waiting for your sign-off first\nManager: let's discuss Thursday. also — can you cover the team retro next week? I'm travelling`,
+  },
+];
+
+// ─── CLAUDE SYSTEM PROMPT ──────────────────────────────────
+const SYSTEM_PROMPT = `You are Readie, an AI meeting prep assistant. Read the user's sources and generate a formal numbered agenda-style meeting brief tailored to the specific meeting type and audience.
+
+CORE RULES:
+1. Output a numbered agenda with time allocations per item.
+2. Never use a fixed template. Let the data decide items.
+3. Always include wins first, next steps and AOB last.
+4. Every other item only appears if data supports it.
+5. Allocate more time to urgent items. Never exceed meeting duration. Default to 60 min if not specified.
+6. Format decisions as Option A vs Option B.
+7. One bullet per line. No filler words.
+8. Tag each bullet with its source: [Email] [Teams] [Doc] [Slides] [Excel] [Slack] [PDF]
+9. Flag contradictions between sources as a dedicated item.
+10. Flag anticipated questions as sub-bullets: Expect: [question] → [suggested answer]
+
+CRITICAL — AUDIENCE AWARENESS:
+The same data must produce a completely different brief per meeting type:
+- Manager 1:1: candid, complete, all internal details included — Wei, sprint issues, resource changes
+- Team Sync: collaborative, surfaces blockers and discussion topics, team members named
+- Stakeholder Review: no internal names or sprint details, translate to business language, board-aware
+- Customer Call: customer-first framing only, never mention internal team names, sprint details, budget figures, or resource issues
+
+URGENCY LABELS:
+- ✅ wins/positive items
+- ⚠️ decisions and risks
+- ⛔ sensitive or conflict
+- No prefix for standard items
+
+CRITICAL OUTPUT RULES:
+1. Return ONLY valid JSON - no markdown, no code blocks, no explanatory text
+2. Start your response with { and end with }
+3. Use proper JSON escaping for quotes inside strings
+4. No trailing commas anywhere
+5. Keep bullet text concise (under 150 chars each)
+6. Limit to 6-8 agenda items maximum to stay within token limits
+
+OUTPUT FORMAT:
+{
+  "meetingName": "string",
+  "date": "string",
+  "timeRange": "string",
+  "duration": "string",
+  "attendees": "string",
+  "totalAgendaTime": 60,
+  "bufferTime": 10,
+  "items": [
+    {
+      "num": 1,
+      "urgency": "green",
+      "title": "✅ Wins",
+      "time": "5 min",
+      "bullets": [
+        {
+          "text": "Brief win description",
+          "source": "Email",
+          "isExpect": false
+        }
+      ],
+      "optionA": null,
+      "optionB": null
+    }
+  ]
+}
+
+Item 1 MUST be wins (urgency: green).
+Second-to-last item MUST be Next steps.
+Last item MUST be AOB (urgency: gray).`;
+
+const USER_PROMPTS = {
+  "1on1": (sources) => `Meeting type: Weekly 1:1 with manager
+Date: Thursday April 24, 2026
+Time: 9:00–9:30am
+Duration: 30 minutes
+Attendees: Me and my manager
+Tone: Direct and candid — she knows all the context, skip background
+
+Sources:
+${sources}
+
+Rules:
+- Include all internal details — Wei being pulled, sprint 3 scoping issue, resource changes
+- Flag what manager is likely to raise as sub-bullets: Expect: [question] → [my suggested answer]
+- Surface the team retro ask from Teams thread
+- Assign owner on every next step: me vs manager
+- Keep tight — 30 min goes fast`,
+
+  "teamsync": (sources) => `Meeting type: Biweekly team sync
+Date: Friday April 25, 2026
+Time: 2:00–3:00pm
+Duration: 60 minutes
+Attendees: Full team — David, Wei, Marcus and me
+Tone: Collaborative and open — surface things needing group input
+
+Sources:
+${sources}
+
+Rules:
+- Include internal team details — name Wei, David, Marcus explicitly
+- Surface scope decision as team discussion
+- Flag May 2nd demo agenda from Teams thread
+- Include a blockers section
+- Flag discussion topics explicitly
+- Assign owners by name where possible
+- Reserve 10 min for open discussion`,
+
+  "stakeholder": (sources) => `Meeting type: Stakeholder project review
+Date: Thursday April 24, 2026
+Time: 3:00–4:00pm
+Duration: 60 minutes
+Attendees: Sarah Chen (VP), Maynard K. (Director)
+Tone: Confident, no jargon, no internal details — status, decisions, board story
+
+Sources:
+${sources}
+
+Rules:
+- NEVER mention Wei, David, Marcus, sprint details, or resource changes by name
+- Translate internal issues into business language
+- Lead with wins
+- Surface board review May 5th as its own item
+- Address Sarah's email concern directly
+- Pair every risk with its mitigation
+- Next steps need owner and deadline`,
+
+  "customer": (sources) => `Meeting type: Quarterly business review
+Date: Friday April 25, 2026
+Time: 10:00–11:00am
+Duration: 60 minutes
+Attendees: Acme Corp stakeholders and me
+Tone: Professional, customer-first
+
+Sources:
+${sources}
+
+Rules:
+- NEVER mention internal team names, sprint details, resource issues, or budget figures
+- Frame reporting delay as customer benefit: "earlier access to core features"
+- Open with value delivered this quarter
+- Include dedicated section for customer feedback
+- Close with mutual next steps — what we do AND what they do
+- Keep language executive-friendly throughout`,
+};
+
+// ─── HELPERS ──────────────────────────────────────────────
+function getSourceIconChar(type) {
+  const map = { email: "@", doc: "D", slides: "S", teams: "T", excel: "X", pdf: "P", slack: "#" };
+  return map[type] || "?";
+}
+
+function formatSourcesForPrompt(sources) {
+  return sources.map((s, i) => `[${s.label.toUpperCase()} — ${s.sender}]\n${s.full}`).join("\n\n---\n\n");
+}
+
+function urgencyToClass(u) {
+  return { green: "num-green", amber: "num-amber", red: "num-red", blue: "num-blue", gray: "num-gray" }[u] || "num-gray";
+}
+
+function tagClass(source) {
+  const s = (source || "").toLowerCase();
+  return `tag-${s}`;
+}
+
+function truncate(str, len) {
+  if (!str) return "";
+  return str.length > len ? str.slice(0, len) + "…" : str;
+}
+
+// ─── GMAIL MCP FETCH ──────────────────────────────────────
+async function fetchRecentEmails() {
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "anthropic-dangerous-direct-browser-calls": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4000,
+        mcp_servers: [{ 
+          type: "url", 
+          url: "https://gmailmcp.googleapis.com/mcp/v1", 
+          name: "gmail" 
+        }],
+        messages: [{
+          role: "user",
+          content: `Use the Gmail MCP server to fetch my 5 most recent emails. For each email, extract:
+- sender name
+- sender email address  
+- subject line
+- date (in format like "Apr 24, 2026")
+- full body text
+
+Return ONLY a valid JSON array with no markdown formatting, no code blocks, no extra text. Just the raw JSON array like this:
+[
+  {
+    "sender": "Name",
+    "email": "email@example.com",
+    "subject": "Subject line",
+    "date": "Apr 24, 2026",
+    "body": "Full email body text"
+  }
+]`
+        }]
+      })
+    });
+
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error.message || "Gmail connection error");
+    }
+
+    // Extract text from all content blocks
+    const allText = (data.content || [])
+      .filter(item => item.type === "text")
+      .map(item => item.text)
+      .join("\n");
+
+    // Try to find JSON array in the response
+    const jsonMatch = allText.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.error("No JSON found in response:", allText);
+      throw new Error("Could not parse email data");
+    }
+
+    const emails = JSON.parse(jsonMatch[0]);
+    return emails;
+    
+  } catch (error) {
+    console.error("Gmail fetch error:", error);
+    throw error;
+  }
+}
+
+async function searchEmails(query) {
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "anthropic-dangerous-direct-browser-calls": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4000,
+        mcp_servers: [{ 
+          type: "url", 
+          url: "https://gmailmcp.googleapis.com/mcp/v1", 
+          name: "gmail" 
+        }],
+        messages: [{
+          role: "user",
+          content: `Use the Gmail MCP server to search my inbox for emails matching: "${query}"
+
+Return the top 5 results. For each email, extract:
+- sender name
+- sender email address
+- subject line  
+- date (in format like "Apr 24, 2026")
+- full body text
+
+Return ONLY a valid JSON array with no markdown formatting, no code blocks, no extra text. Just the raw JSON array like this:
+[
+  {
+    "sender": "Name",
+    "email": "email@example.com",
+    "subject": "Subject line",
+    "date": "Apr 24, 2026",
+    "body": "Full email body text"
+  }
+]`
+        }]
+      })
+    });
+
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error.message || "Gmail search error");
+    }
+
+    // Extract text from all content blocks
+    const allText = (data.content || [])
+      .filter(item => item.type === "text")
+      .map(item => item.text)
+      .join("\n");
+
+    // Try to find JSON array in the response
+    const jsonMatch = allText.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.error("No JSON found in response:", allText);
+      throw new Error("Could not parse search results");
+    }
+
+    const emails = JSON.parse(jsonMatch[0]);
+    return emails;
+    
+  } catch (error) {
+    console.error("Gmail search error:", error);
+    throw error;
+  }
+}
+
+// ─── CLAUDE BRIEF GENERATION ──────────────────────────────
+async function generateBrief(meeting, sources, apiKey = "") {
+  const promptKey = meeting.promptKey;
+  const userContent = USER_PROMPTS[promptKey](formatSourcesForPrompt(sources));
+  
+  try {
+    const headers = { "Content-Type": "application/json" };
+    
+    // Use API key if provided (for local use), otherwise use browser calls header (for claude.ai)
+    if (apiKey && apiKey.trim()) {
+      headers["x-api-key"] = apiKey.trim();
+      headers["anthropic-version"] = "2023-06-01";
+    } else {
+      headers["anthropic-dangerous-direct-browser-calls"] = "true";
+    }
+    
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096,
+        temperature: 0.3,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userContent }]
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      console.error("API Error:", data.error);
+      throw new Error(data.error.message || "Claude API error");
+    }
+    
+    const text = (data.content || [])
+      .filter(i => i.type === "text")
+      .map(i => i.text)
+      .join("");
+    
+    console.log("Raw API response:", text.substring(0, 500) + "...");
+    
+    // Remove any markdown code blocks
+    let clean = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    
+    // Try to find the JSON object
+    const jsonStart = clean.indexOf('{');
+    const jsonEnd = clean.lastIndexOf('}');
+    
+    if (jsonStart === -1 || jsonEnd === -1) {
+      console.error("Full response:", text);
+      throw new Error("No valid JSON found in response");
+    }
+    
+    const jsonStr = clean.substring(jsonStart, jsonEnd + 1);
+    
+    console.log("Extracted JSON length:", jsonStr.length);
+    
+    try {
+      const parsed = JSON.parse(jsonStr);
+      return parsed;
+    } catch (parseError) {
+      console.error("JSON Parse Error:", parseError);
+      console.error("Attempted to parse:", jsonStr.substring(0, 1000));
+      
+      // Try to fix common JSON errors
+      let fixed = jsonStr
+        .replace(/,\s*}/g, '}')  // Remove trailing commas in objects
+        .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
+        .replace(/"\s*\n\s*"/g, '", "');  // Fix newlines in strings
+      
+      try {
+        return JSON.parse(fixed);
+      } catch (fixError) {
+        throw new Error(`JSON parsing failed: ${parseError.message}`);
+      }
+    }
+    
+  } catch (error) {
+    console.error("Brief generation error:", error);
+    throw error;
+  }
+}
+
+// ─── PDF EXPORT ───────────────────────────────────────────
+function exportToPDF(brief, meetingName) {
+  try {
+    // Check if jsPDF is available
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      console.error("jsPDF not loaded");
+      alert("PDF library not loaded. Please refresh the page and try again.");
+      return false;
+    }
+
+    // Helper to clean text of emoji/unicode for PDF
+    const cleanForPDF = (text) => {
+      if (!text) return "";
+      return text
+        .replace(/✅/g, "[WIN]")
+        .replace(/⚠️/g, "[RISK]")
+        .replace(/⛔/g, "[ALERT]")
+        .replace(/→/g, "->")
+        .replace(/↳/g, "=>")
+        .replace(/—/g, "-")
+        .replace(/·/g, "·")
+        .replace(/…/g, "...")
+        // Remove any other emoji or special unicode
+        .replace(/[\u{1F300}-\u{1F9FF}]/gu, "");
+    };
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
+    const margin = 56;
+    const pageW = doc.internal.pageSize.getWidth();
+    const maxW = pageW - margin * 2;
+    let y = margin;
+
+    const checkPage = (needed = 20) => {
+      if (y + needed > doc.internal.pageSize.getHeight() - margin) {
+        doc.addPage();
+        y = margin;
+      }
+    };
+
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(17, 24, 39);
+    doc.text(cleanForPDF(brief.meetingName || meetingName), margin, y);
+    y += 24;
+
+    // Meta
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(107, 114, 128);
+    const meta = [brief.date, brief.timeRange, `Duration: ${brief.duration}`, `Attendees: ${brief.attendees}`].filter(Boolean).join("  ·  ");
+    doc.text(cleanForPDF(meta), margin, y);
+    y += 14;
+
+    const totalLine = `Total agenda time: ${brief.totalAgendaTime} min  ·  ${brief.bufferTime} min buffer`;
+    doc.text(cleanForPDF(totalLine), margin, y);
+    y += 24;
+
+    // Divider
+    doc.setDrawColor(229, 231, 235);
+    doc.line(margin, y, pageW - margin, y);
+    y += 18;
+
+    // Items
+    (brief.items || []).forEach((item, idx) => {
+      checkPage(30);
+      const urgencyColors = {
+        green: [22, 163, 74], amber: [217, 119, 6], red: [220, 38, 38],
+        blue: [37, 99, 235], gray: [107, 114, 128]
+      };
+      const [r, g, b] = urgencyColors[item.urgency] || [107, 114, 128];
+
+      // Number circle
+      doc.setFillColor(r, g, b);
+      doc.circle(margin + 8, y - 4, 9, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(255, 255, 255);
+      doc.text(String(item.num), margin + 8, y - 1, { align: "center" });
+
+      // Title (clean emojis)
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(17, 24, 39);
+      const cleanTitle = cleanForPDF(item.title || "");
+      doc.text(cleanTitle, margin + 22, y);
+
+      // Time pill (right)
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(107, 114, 128);
+      doc.text(cleanForPDF(item.time || ""), pageW - margin, y, { align: "right" });
+
+      y += 18;
+      checkPage(20);
+
+      // Bullets
+      (item.bullets || []).forEach(bullet => {
+        checkPage(16);
+        const prefix = bullet.isExpect ? "    => " : "  - ";
+        doc.setFont("courier", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(107, 114, 128);
+        const bulletText = prefix + cleanForPDF(bullet.text) + (bullet.source ? `  [${bullet.source.toUpperCase()}]` : "");
+        const lines = doc.splitTextToSize(bulletText, maxW - 20);
+        lines.forEach(line => {
+          checkPage(13);
+          doc.text(line, margin + 20, y);
+          y += 13;
+        });
+      });
+
+      // Option A/B
+      if (item.optionA || item.optionB) {
+        checkPage(40);
+        y += 4;
+        if (item.optionA) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          doc.setTextColor(22, 101, 52);
+          doc.text("OPTION A:", margin + 22, y);
+          doc.setFont("courier", "normal");
+          doc.setTextColor(107, 114, 128);
+          const lines = doc.splitTextToSize(cleanForPDF(item.optionA), maxW - 80);
+          doc.text(lines, margin + 80, y);
+          y += lines.length * 12 + 4;
+        }
+        if (item.optionB) {
+          checkPage(20);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          doc.setTextColor(153, 27, 27);
+          doc.text("OPTION B:", margin + 22, y);
+          doc.setFont("courier", "normal");
+          doc.setTextColor(107, 114, 128);
+          const lines = doc.splitTextToSize(cleanForPDF(item.optionB), maxW - 80);
+          doc.text(lines, margin + 80, y);
+          y += lines.length * 12 + 4;
+        }
+      }
+
+      y += 10;
+      checkPage(6);
+      doc.setDrawColor(229, 231, 235);
+      doc.line(margin, y, pageW - margin, y);
+      y += 14;
+    });
+
+    const today = new Date().toISOString().split("T")[0];
+    const filename = `${meetingName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${today}.pdf`;
+    
+    console.log("Generating PDF:", filename);
+    
+    // Use blob output instead of save() to prevent navigation
+    const pdfBlob = doc.output('blob');
+    
+    // Manually trigger download (same method as HTML download)
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    
+    // Cleanup
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      console.log("PDF download complete");
+    }, 100);
+    
+    return false; // Prevent any default behavior
+    
+  } catch (error) {
+    console.error("PDF export error:", error);
+    alert(`Failed to export PDF: ${error.message}\n\nPlease check the browser console for details.`);
+    return false;
+  }
+}
+
+// ─── COMPONENTS ───────────────────────────────────────────
+
+// Logo SVG
+function ReadieLogo() {
+  return (
+    <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="2,4 8,1 14,4 14,12 8,15 2,12 2,4" />
+      <polyline points="2,4 8,7 14,4" />
+      <line x1="8" y1="7" x2="8" y2="15" />
+    </svg>
+  );
+}
+
+// Source card
+function SourceCard({ source, onRemove }) {
+  return (
+    <div className="source-card">
+      <div className="source-card-header">
+        <div className="source-card-left">
+          <span className={`source-icon ${source.type}`}>{getSourceIconChar(source.type)}</span>
+          <span className="source-card-type">{source.label}</span>
+        </div>
+        <span className="source-card-sender">{source.sender}</span>
+      </div>
+      <p className="source-preview">{source.preview}</p>
+      <button className="source-remove-btn" onClick={() => onRemove(source.id)} title="Remove source">×</button>
+    </div>
+  );
+}
+
+// Gmail panel
+function GmailPanel({ onAddEmail }) {
+  const [query, setQuery] = useState("");
+  const [emails, setEmails] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [addedIds, setAddedIds] = useState(new Set());
+
+  const handleFetch = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    setEmails([]);
+    try {
+      const results = await fetchRecentEmails();
+      setEmails(results);
+      setSuccess(`Fetched ${results.length} recent emails`);
+    } catch (e) {
+      console.error("Fetch error:", e);
+      setError("Gmail connection required. Connect in Claude.ai settings.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async (e) => {
+    if (e.key === "Enter" && query.trim()) {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+      setEmails([]);
+      try {
+        const results = await searchEmails(query.trim());
+        if (!results.length) {
+          setError("No emails found — try a different search.");
+        } else {
+          setEmails(results);
+          setSuccess(`Found ${results.length} matching emails`);
+        }
+      } catch (e) {
+        console.error("Search error:", e);
+        setError("Gmail connection required. Connect in Claude.ai settings.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleAdd = (email) => {
+    const id = "gmail-" + Date.now() + Math.random();
+    onAddEmail({
+      id,
+      type: "email",
+      label: "Email",
+      sender: email.sender,
+      preview: truncate(email.body, 80),
+      full: `Subject: ${email.subject}\nFrom: ${email.sender} <${email.email}>\nDate: ${email.date}\n\n${email.body}`,
+    });
+    setAddedIds(prev => new Set([...prev, email.email + email.subject]));
+  };
+
+  return (
+    <div className="gmail-panel">
+      <div className="gmail-header">
+        {/* Gmail icon */}
+        <svg className="gmail-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="24" height="24" rx="4" fill="#fff"/>
+          <path d="M4 7l8 5.5L20 7" stroke="#EA4335" strokeWidth="1.5" fill="none"/>
+          <rect x="3" y="6" width="18" height="13" rx="1" stroke="#4285F4" strokeWidth="1.5" fill="none"/>
+          <path d="M3 6.5L12 13l9-6.5" stroke="#EA4335" strokeWidth="1.5" strokeLinejoin="round"/>
+        </svg>
+        <span className="gmail-title">Import from Gmail</span>
+      </div>
+      <p className="gmail-subtext">Pull emails directly from your inbox</p>
+      <div className="gmail-search-row">
+        <input
+          className="gmail-search-input"
+          type="text"
+          placeholder="Search your inbox..."
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={handleSearch}
+        />
+        <button className="gmail-fetch-btn" onClick={handleFetch} disabled={loading}>
+          {loading ? "…" : "Fetch recent"}
+        </button>
+      </div>
+
+      {loading && (
+        <div className="gmail-status">
+          <div className="spinner spinner-sm" />
+          Fetching from inbox...
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="gmail-error">{error}</div>
+      )}
+
+      {success && !loading && emails.length > 0 && (
+        <div className="gmail-success">{success}</div>
+      )}
+
+      {!loading && !error && emails.length > 0 && (
+        <div>
+          {emails.map((email, i) => {
+            const key = email.email + email.subject;
+            const added = addedIds.has(key);
+            return (
+              <div className="gmail-email-item" key={i}>
+                <div className="gmail-email-info">
+                  <div className="gmail-email-sender">{email.sender}</div>
+                  <div className="gmail-email-subject">{truncate(email.subject, 40)}</div>
+                  <div className="gmail-email-date">{email.date}</div>
+                </div>
+                <button
+                  className="gmail-add-btn"
+                  onClick={() => !added && handleAdd(email)}
+                  title={added ? "Added" : "Add as source"}
+                  style={added ? { background: "#dcfce7", color: "#16a34a", cursor: "default" } : {}}
+                >
+                  {added ? "✓" : "+"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Drop zone + source pills
+function FileDropZone({ onAddSource }) {
+  const [dragover, setDragover] = useState(false);
+  const fileInputRef = useRef();
+
+  const handleFileDrop = async (files) => {
+    for (const file of files) {
+      const ext = file.name.split(".").pop().toLowerCase();
+      let type = "doc";
+      let label = "Doc";
+      if (["xlsx", "xls", "csv"].includes(ext)) { type = "excel"; label = "Excel"; }
+      else if (ext === "pdf") { type = "pdf"; label = "PDF"; }
+      else if (["ppt", "pptx"].includes(ext)) { type = "slides"; label = "Slides"; }
+
+      let content = "";
+
+      if (["xlsx", "xls"].includes(ext)) {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const workbook = XLSX.read(arrayBuffer, { type: "array" });
+          const sheets = workbook.SheetNames.map(name => {
+            const sheet = workbook.Sheets[name];
+            return `Sheet: ${name}\n${XLSX.utils.sheet_to_csv(sheet)}`;
+          });
+          content = sheets.join("\n\n");
+        } catch (e) {
+          content = `[Could not parse Excel file: ${e.message}]`;
+        }
+      } else if (ext === "csv") {
+        content = await file.text();
+      } else {
+        try { content = await file.text(); } catch (e) { content = `[Binary file: ${file.name}]`; }
+      }
+
+      onAddSource({
+        id: "file-" + Date.now() + Math.random(),
+        type, label,
+        sender: file.name,
+        preview: truncate(content.replace(/\s+/g, " "), 80),
+        full: content.slice(0, 8000),
+      });
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragover(false);
+    handleFileDrop(Array.from(e.dataTransfer.files));
+  };
+
+  const handleFileInput = (e) => {
+    handleFileDrop(Array.from(e.target.files));
+  };
+
+  const handlePillClick = (type) => {
+    const label = { email: "Email", doc: "Doc", slides: "Slides", teams: "Teams", slack: "Slack", excel: "Excel", pdf: "PDF" }[type];
+    const content = prompt(`Paste your ${label} content here:`);
+    if (content && content.trim()) {
+      onAddSource({
+        id: "manual-" + Date.now(),
+        type, label,
+        sender: "Manual",
+        preview: truncate(content.replace(/\s+/g, " "), 80),
+        full: content,
+      });
+    }
+  };
+
+  return (
+    <div>
+      <div
+        className={`drop-zone${dragover ? " dragover" : ""}`}
+        onDragOver={e => { e.preventDefault(); setDragover(true); }}
+        onDragLeave={() => setDragover(false)}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current && fileInputRef.current.click()}
+      >
+        <input ref={fileInputRef} type="file" multiple accept=".txt,.md,.csv,.xlsx,.xls,.pdf,.pptx,.ppt,.docx,.doc" onChange={handleFileInput} style={{display:"none"}} />
+        <div className="drop-zone-title">Drop a file or paste content</div>
+        <div className="drop-zone-sub">or connect a source</div>
+      </div>
+      <div className="source-pills">
+        {["email","doc","slides","teams","slack","excel","pdf"].map(type => (
+          <button key={type} className={`source-pill ${type}`} onClick={() => handlePillClick(type)}>
+            {type.charAt(0).toUpperCase() + type.slice(1)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Agenda item component
+function AgendaItem({ item }) {
+  const circleClass = urgencyToClass(item.urgency);
+  return (
+    <div className="agenda-item">
+      <div className="agenda-item-header">
+        <div className="agenda-item-left">
+          <div className={`agenda-num-circle ${circleClass}`}>{item.num}</div>
+          <div>
+            <div className="agenda-item-title">{item.title}</div>
+          </div>
+        </div>
+        <span className="time-pill">{item.time}</span>
+      </div>
+      <div className="agenda-bullets">
+        {(item.bullets || []).map((bullet, i) => (
+          <div key={i} className={`agenda-bullet${bullet.isExpect ? " expect-bullet" : ""}`}>
+            <span>{bullet.text}</span>
+            {bullet.source && (
+              <span className={`source-tag ${tagClass(bullet.source)}`}>{bullet.source}</span>
+            )}
+          </div>
+        ))}
+        {(item.optionA || item.optionB) && (
+          <div className="option-box" style={{marginLeft: "-2px", marginTop: "8px"}}>
+            {item.optionA && (
+              <div className="option-box-row">
+                <span className="option-label option-a">A</span>
+                <span className="option-text">{item.optionA}</span>
+              </div>
+            )}
+            {item.optionB && (
+              <div className="option-box-row">
+                <span className="option-label option-b">B</span>
+                <span className="option-text">{item.optionB}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Brief panel
+function BriefPanel({ meeting, brief, loading, onDownload, needsApiKey }) {
+  if (!meeting) {
+    return (
+      <div id="brief-panel">
+        <div className="brief-scroll">
+          <div className="brief-state-center">
+            <div className="brief-state-icon">
+              <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>
+            </div>
+            <p className="brief-state-text">Select a meeting to generate brief</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div id="brief-panel">
+      <div className="brief-header">
+        <div className="brief-header-top">
+          <h1 className="brief-meeting-name">{meeting.name}</h1>
+          {brief && !loading && (
+            <button className="brief-download-btn" onClick={onDownload}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Download
+            </button>
+          )}
+        </div>
+        <div className="brief-meta">
+          {brief ? (
+            <>
+              <span>{brief.date}</span>
+              <span className="brief-meta-sep">·</span>
+              <span>{brief.timeRange}</span>
+              <span className="brief-meta-sep">·</span>
+              <span>{brief.attendees}</span>
+              {brief.totalAgendaTime && (
+                <>
+                  <span className="brief-meta-sep">·</span>
+                  <span className="brief-time-tag">
+                    {brief.totalAgendaTime} min total · {brief.bufferTime} min buffer
+                  </span>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <span>{meeting.day}</span>
+              <span className="brief-meta-sep">·</span>
+              <span>{meeting.time}</span>
+              <span className="brief-meta-sep">·</span>
+              <span>{meeting.audience}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="brief-scroll">
+        {loading ? (
+          <div className="brief-state-center">
+            <div className="spinner" style={{width: 32, height: 32}} />
+            <p className="brief-state-text">Reading your week…</p>
+          </div>
+        ) : brief ? (
+          <div>
+            {(brief.items || []).map((item, i) => (
+              <AgendaItem key={i} item={item} />
+            ))}
+          </div>
+        ) : needsApiKey ? (
+          <div className="brief-state-center">
+            <div className="brief-state-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <p className="brief-state-text" style={{maxWidth: "320px", textAlign: "center"}}>
+              Enter your Anthropic API key above, then click "Regenerate brief"
+            </p>
+            <p style={{fontSize: "11px", color: "var(--text-muted)", marginTop: "8px"}}>
+              Get your key at console.anthropic.com
+            </p>
+          </div>
+        ) : (
+          <div className="brief-state-center">
+            <div className="brief-state-icon">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <p className="brief-state-text">Could not generate brief — check console for errors</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────
+function App() {
+  const [activeMeetingId, setActiveMeetingId] = useState("projreview");
+  const [sources, setSources] = useState(SAMPLE_SOURCES);
+  const [brief, setBrief] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [generatingFor, setGeneratingFor] = useState(null);
+  const [apiKey, setApiKey] = useState("");
+
+  const activeMeeting = MEETINGS.find(m => m.id === activeMeetingId);
+
+  // Auto-generate brief when meeting or sources change
+  const autoGenerate = useCallback(async (meeting, currentSources) => {
+    if (!meeting || currentSources.length === 0) return;
+    setLoading(true);
+    setBrief(null);
+    setGeneratingFor(meeting.id);
+    try {
+      const result = await generateBrief(meeting, currentSources, apiKey);
+      setBrief(result);
+    } catch (e) {
+      console.error("Brief generation error:", e);
+      setBrief(null);
+    } finally {
+      setLoading(false);
+      setGeneratingFor(null);
+    }
+  }, [apiKey]);
+
+  // Initial load
+  useEffect(() => {
+    // Skip auto-generation on initial load - user needs to add API key first or click regenerate
+    // Auto-generation will happen when they change meetings or sources
+  }, []);
+
+  // Auto-generate when API key is first entered
+  useEffect(() => {
+    if (apiKey && apiKey.trim() && activeMeeting && sources.length > 0 && !brief) {
+      autoGenerate(activeMeeting, sources);
+    }
+  }, [apiKey]);
+
+  // Meeting switch
+  const handleMeetingSelect = (meeting) => {
+    setActiveMeetingId(meeting.id);
+    setBrief(null);
+    autoGenerate(meeting, sources);
+  };
+
+  // Source removal
+  const handleRemoveSource = (id) => {
+    const updated = sources.filter(s => s.id !== id);
+    setSources(updated);
+    if (activeMeeting && updated.length > 0) autoGenerate(activeMeeting, updated);
+  };
+
+  // Add source
+  const handleAddSource = (source) => {
+    const updated = [...sources, source];
+    setSources(updated);
+    if (activeMeeting) autoGenerate(activeMeeting, updated);
+  };
+
+  // Regen
+  const handleRegen = () => {
+    if (activeMeeting) autoGenerate(activeMeeting, sources);
+  };
+
+  // Download HTML source
+  const handleDownloadSource = (e) => {
+    if (e) e.preventDefault();
+    try {
+      const html = document.documentElement.outerHTML;
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "readie.html";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      console.log("HTML source downloaded successfully");
+    } catch (error) {
+      console.error("Download source error:", error);
+      alert(`Failed to download source: ${error.message}`);
+    }
+  };
+
+  // Download PDF
+  const handleDownload = (e) => {
+    if (e) e.preventDefault();
+    try {
+      if (!brief) {
+        alert("No brief to download. Please generate a brief first.");
+        return;
+      }
+      if (!activeMeeting) {
+        alert("No meeting selected.");
+        return;
+      }
+      console.log("Starting PDF download for:", activeMeeting.name);
+      exportToPDF(brief, activeMeeting.name);
+    } catch (error) {
+      console.error("Download handler error:", error);
+      alert(`Failed to download PDF: ${error.message}`);
+    }
+  };
+
+  return (
+    <div id="app-shell">
+      {/* SIDEBAR */}
+      <aside id="sidebar">
+        <div className="sidebar-logo">
+          <div className="logo-row">
+            <div className="logo-icon"><ReadieLogo /></div>
+            <span className="logo-name">Readie</span>
+          </div>
+          <div className="logo-tagline">Your week, already translated</div>
+        </div>
+
+        <div style={{padding: "12px 10px 8px", borderBottom: "1px solid var(--border-dark)"}}>
+          <input
+            type="password"
+            placeholder="Anthropic API Key (optional)"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "6px 8px",
+              fontSize: "11px",
+              fontFamily: "var(--font-ui)",
+              background: "#1a1a24",
+              border: "1px solid #2a2a38",
+              borderRadius: "6px",
+              color: "#e5e7eb",
+              outline: "none"
+            }}
+          />
+          <div style={{fontSize: "9px", color: "#4b5563", marginTop: "4px", lineHeight: 1.3}}>
+            For local use only. Get yours at console.anthropic.com
+          </div>
+        </div>
+
+        <div className="sidebar-section-label">Meetings</div>
+        <div className="meeting-list">
+          {MEETINGS.map(meeting => (
+            <div
+              key={meeting.id}
+              className={`meeting-card${activeMeetingId === meeting.id ? " active" : ""}`}
+              onClick={() => handleMeetingSelect(meeting)}
+            >
+              <div className="meeting-card-type">{meeting.type}</div>
+              <div className="meeting-card-name">{meeting.name}</div>
+              <div className="meeting-card-meta">{meeting.day} · {meeting.time}</div>
+              {meeting.today && <span className="meeting-card-today">TODAY</span>}
+            </div>
+          ))}
+        </div>
+
+        <button className="sidebar-add-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Add meeting
+        </button>
+
+        <button className="sidebar-download-src-btn" onClick={handleDownloadSource}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download source
+        </button>
+      </aside>
+
+      {/* MAIN */}
+      <div id="main-panel">
+        {/* SOURCES */}
+        <section id="sources-panel">
+          <div className="sources-scroll">
+            {/* Section 1: Source cards */}
+            <div className="sources-section">
+              <div className="sources-section-title">Sources ({sources.length})</div>
+              {sources.length === 0 ? (
+                <p style={{fontSize: "11px", color: "var(--text-muted)"}}>No sources added yet.</p>
+              ) : (
+                sources.map(src => (
+                  <SourceCard key={src.id} source={src} onRemove={handleRemoveSource} />
+                ))
+              )}
+            </div>
+
+            {/* Section 2: Gmail */}
+            <div className="sources-section">
+              <div className="sources-section-title">Gmail</div>
+              <GmailPanel onAddEmail={handleAddSource} />
+            </div>
+
+            {/* Section 3: File drop */}
+            <div className="sources-section">
+              <div className="sources-section-title">Add sources</div>
+              <FileDropZone onAddSource={handleAddSource} />
+            </div>
+          </div>
+
+          <div className="sources-footer">
+            <button className="regen-btn" onClick={handleRegen} disabled={loading}>
+              {loading ? (
+                <><div className="spinner spinner-sm" style={{borderTopColor: "#22c55e"}} /> Generating…</>
+              ) : (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                  </svg>
+                  Regenerate brief
+                </>
+              )}
+            </button>
+          </div>
+        </section>
+
+        {/* BRIEF */}
+        <BriefPanel
+          meeting={activeMeeting}
+          brief={brief}
+          loading={loading}
+          onDownload={handleDownload}
+          needsApiKey={!apiKey || !apiKey.trim()}
+        />
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
