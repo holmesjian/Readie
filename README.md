@@ -15,7 +15,7 @@ Readie reads your week for you. It spots the risks, frames the decisions, antici
 
 **[📥 Download readie.html](https://github.com/holmesjian/readie/raw/main/readie.html)** - Open in your browser and start prepping!
 
-**[🌐 Live Demo on GitHub Pages](https://holmesjian.github.io/readie/readie.html)** - Try it without downloading
+**[🌐 Live Demo on GitHub Pages](https://holmesjian.github.io/readie/)** - Try it without downloading
 
 ---
 
